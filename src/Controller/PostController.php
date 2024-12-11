@@ -25,6 +25,31 @@ class PostController extends AbstractController
 
     }
 
+    // Route pour voir un post spécifique, avec validation que l'id est numérique
+    #[Route("/post/{id}", name: "post_show", requirements: ["id" => "\d+"])]
+    public function show(Request $request, int $id): Response
+    {
+        // Assurez-vous que les données sont initialisées
+        $this->initialize($request);
+
+        // Accès à la session et récupération des posts
+        $session = $request->getSession();
+        $posts = $session->get('posts', []);
+
+        // Tentative de récupération du post spécifique par son id
+        $post = $posts[$id] ?? null;
+
+        // Si le post n'existe pas, lance une exception de non trouvé
+        if (!$post) {
+            throw $this->createNotFoundException(sprintf('The post with ID %d was not found.', $id));
+        }
+
+        // Rendu de la vue show.html.twig pour afficher le post
+        return $this->render('post/show.html.twig', [
+            'post' => $post,
+        ]);
+    }
+
 
     #[Route('/post', name: 'app_post')]
     public function index(Request $request): Response
@@ -36,7 +61,6 @@ class PostController extends AbstractController
             'posts' => $posts,
         ]);
     }
-
 
     #[Route("/post/create", name: 'post_create')]
     public function create(Request $request): Response
@@ -59,6 +83,50 @@ class PostController extends AbstractController
 
         return $this->render("post/create.html.twig");
 
+    }
+
+    #[Route("/post/{id}/edit", name: "post_edit")]
+    public function edit(Request $request, int $id): Response
+    {
+        $this->initialize($request);
+        $session = $request->getSession();
+        $posts = $session->get('posts', []);
+        $post = $posts[$id] ?? null;
+
+        if (!$post) {
+            throw $this->createNotFoundException('Post not found');
+        }
+
+        if ($request->isMethod('POST')) {
+            $post->title = $request->request->get('title');
+            $post->content = $request->request->get('content');
+
+            $posts[$id] = $post;
+            $session->set('posts', $posts);
+
+            return $this->redirectToRoute('app_post');
+        }
+
+        return $this->render('post/edit.html.twig', [
+            'post' => $post,
+        ]);
+    }
+
+
+    #[Route("/post/{id}/delete", name: "post_delete")]
+    public function delete(Request $request, int $id): Response
+    {
+        $this->initialize($request);
+
+        $session = $request->getSession();
+        $posts = $session->get('posts', []);
+
+        if (isset($posts[$id])) {
+            unset($posts[$id]);
+            $session->set('posts', $posts);
+        }
+
+        return $this->redirectToRoute('app_post');
     }
 
 
